@@ -26,7 +26,7 @@ namespace WorklogCore.Controllers
             {
                 var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", string.Empty);
                 await _worklogService.CreateWorklog(worklog, token);
-                return Ok();
+                return StatusCode(201);
             }
             catch (Exception ex)
             {
@@ -37,12 +37,12 @@ namespace WorklogCore.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index([FromQuery] string filter = "ALL", [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
                 var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", string.Empty);
-                var result = await _worklogService.GetWorklogsGroupedByDay(token);
+                var result = await _worklogService.GetWorklogsGroupedByDay(token, filter, page, pageSize);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -50,6 +50,25 @@ namespace WorklogCore.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+
+        [Authorize]
+        [HttpGet("WorklogsByUser")]
+        public async Task<IActionResult> WorklogsByUser()
+        {
+            try
+            {
+                var token = Request.Headers["Authorization"].ToString().Replace("Bearer ", string.Empty);
+                var result = await _worklogService.GetWorklogs(token);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+
 
         [Authorize]
         [HttpPatch("{id}")]

@@ -3,6 +3,7 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services;
+using WorklogCore.Models;
 
 namespace WorklogCore.Controllers
 {
@@ -20,12 +21,12 @@ namespace WorklogCore.Controllers
 
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(string userName)
+        public async Task<IActionResult> Login([FromBody] LoginModel loginModel)
         {
-            User user = await _userService.LoginUser(userName);
+            User user = await _userService.LoginUser(loginModel.User);
             if (user != null)
             {
-               var token = Authentication.GenerateJwtToken(user.Id,userName, user.Role);
+               var token = Authentication.GenerateJwtToken(user.Id, loginModel.User, user.Role);
                return Ok(new { Token = token, User = user });
             }
             else

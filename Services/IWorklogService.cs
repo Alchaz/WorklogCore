@@ -14,7 +14,9 @@ namespace Services
         Task CreateWorklog(Worklog worklog, string token);
 
 
-        Task<List<IGrouping<DateOnly, Worklog>>> GetWorklogsGroupedByDay(string token);
+        Task<WorklogsPaged> GetWorklogsGroupedByDay(string token, string filter ,  int page ,  int pageSize);
+
+        Task<List<Worklog>> GetWorklogs(string token);
 
         Task UpdateWorkedHours(int idWorklog, decimal workedHours, string token);
 

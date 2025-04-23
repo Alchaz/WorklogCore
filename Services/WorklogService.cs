@@ -29,28 +29,44 @@ namespace Services
             await _worklogRepository.AddAsync(worklog);
         }
 
-        public async Task<List<IGrouping<DateOnly, Worklog>>> GetWorklogsGroupedByDay(string token)
+        public async Task<WorklogsPaged> GetWorklogsGroupedByDay(string token, string filter, int page, int pageSize)
         {
             var claims = Authentication.GetClaimsFromToken(token);
             string role = claims.Where(c => c.Type.Equals(JwtRegisteredClaimNames.Typ)).FirstOrDefault().Value;
             string userName = claims.Where(c=>c.Type.Equals(JwtRegisteredClaimNames.Sub)).FirstOrDefault().Value;
-            List<IGrouping<DateOnly, Worklog>> groupedWorklogs;
-            if (role.Equals(Helpers.UserRoleEnum.Admin.ToString()))
+            IQueryable<Worklog> query = _worklogRepository.GetAllQueryable()
+            .Include(w => w.User);
+
+            if (!role.Equals(Helpers.UserRoleEnum.Admin.ToString()))
             {
-                 groupedWorklogs = await _worklogRepository.GetAllQueryable()
-                                          .Include(c=>c.User)
-                                          .GroupBy(w => w.date)
-                                          .ToListAsync();
-            }
-            else
-            {
-                groupedWorklogs = await _worklogRepository.GetAllQueryable().Where(c => c.User.Name.Equals(userName))
-                                             .Include(c => c.User)
-                                            .GroupBy(w => w.date)
-                                            .ToListAsync();
+                query = query.Where(w => w.User.Name.Equals(userName));
             }
 
-            return groupedWorklogs;
+            if (filter.Equals("OT"))
+            {
+                query = query.Where(w => w.User.DailyMaxHours < w.WorkedHours);
+            }
+            else if (filter.Equals("UT"))
+            {
+                query = query.Where(w => w.User.DailyMinHours > w.WorkedHours);
+            }
+            WorklogsPaged worklogsPaged = new WorklogsPaged();
+            List<DateOnly> totalDates = await query.Select(c => c.date).OrderByDescending(x=>x).Distinct().ToListAsync();
+            List<DateOnly> datesOfPage = totalDates
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize).ToList(); 
+            worklogsPaged.TotalPages = (int)Math.Ceiling(totalDates.Count() / (double)pageSize); 
+            worklogsPaged.Worklogs = (await query.Where(c => datesOfPage.Contains(c.date)).ToListAsync()).GroupBy(c => c.date).ToList();
+            return worklogsPaged;
+        }
+
+        public async Task<List<Worklog>> GetWorklogs(string token)
+        {
+            var claims = Authentication.GetClaimsFromToken(token);
+            string userName = claims.Where(c => c.Type.Equals(JwtRegisteredClaimNames.Sub)).FirstOrDefault().Value;
+            List<Worklog> worklogs = new List<Worklog>();
+            worklogs = await _worklogRepository.GetAllQueryable().Where(c => c.User.Name.Equals(userName)).Include(c => c.User).ToListAsync();
+            return worklogs;
         }
 
         public async Task UpdateWorkedHours(int idWorklog, decimal workedHours, string token)
